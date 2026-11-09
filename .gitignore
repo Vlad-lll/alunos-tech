@@ -1,0 +1,23 @@
+## .NET
+bin/
+obj/
+*.user
+*.suo
+.vs/
+.vscode/*
+!.vscode/launch.json
+TestResults/
+*.log
+
+## Rider / ReSharper
+.idea/
+_ReSharper*/
+
+## Segredos e arquivos locais
+.env
+appsettings.Local.json
+*.pfx
+
+## SO
+.DS_Store
+Thumbs.db

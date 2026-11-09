@@ -1,0 +1,20 @@
+# Ambiente local: API + SQL Server. Senha apenas para desenvolvimento.
+services:
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_SA_PASSWORD: "Alunos@Tech123"
+    ports:
+      - "1433:1433"
+    volumes:
+      - ./database:/scripts:ro
+
+  api:
+    build: .
+    ports:
+      - "8080:8080"
+    environment:
+      ConnectionStrings__AlunosTech: "Server=sqlserver,1433;Database=AlunosTech;User Id=sa;Password=Alunos@Tech123;TrustServerCertificate=True"
+    depends_on:
+      - sqlserver

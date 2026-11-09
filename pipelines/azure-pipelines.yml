@@ -1,0 +1,52 @@
+# Versão para Azure DevOps (a mesma ideia do workflow do GitHub Actions).
+# As variáveis acr-service-connection e o AKS precisam existir na organização.
+trigger:
+  branches:
+    include: [ main ]
+
+variables:
+  imageRepository: 'alunostech/api'
+
+stages:
+  - stage: Build
+    jobs:
+      - job: BuildTest
+        pool: { vmImage: 'ubuntu-latest' }
+        steps:
+          - script: dotnet restore && dotnet build -c Release --no-restore
+            displayName: 'Restaurar e compilar'
+          - script: dotnet test -c Release --no-build
+            displayName: 'Testes'
+          - task: Docker@2
+            displayName: 'Gerar e enviar a imagem'
+            inputs:
+              command: buildAndPush
+              repository: $(imageRepository)
+              containerRegistry: 'acr-service-connection'
+              tags: '$(Build.SourceVersion)'
+
+  - stage: DeployHomolog
+    dependsOn: Build
+    jobs:
+      - deployment: Homolog
+        pool: { vmImage: 'ubuntu-latest' }
+        environment: 'homologacao'
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+                - script: kubectl set image deployment/api api=$(imageRepository):$(Build.SourceVersion) -n homolog
+                  displayName: 'Atualizar a imagem no cluster'
+
+  - stage: DeployProducao
+    dependsOn: DeployHomolog
+    jobs:
+      - deployment: Producao
+        pool: { vmImage: 'ubuntu-latest' }
+        environment: 'producao'   # configure aprovação manual neste ambiente
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+                - script: kubectl set image deployment/api api=$(imageRepository):$(Build.SourceVersion) -n producao
+                  displayName: 'Atualizar a imagem no cluster'
