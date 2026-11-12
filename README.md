@@ -1,6 +1,6 @@
 # Alunos Tech: plataforma corporativa integrada (PIM VIII)
 
-Código da parte técnica do PIM VIII (ADS, UNIP). A solução é uma API em C# com .NET 8, organizada em camadas, com banco SQL Server, Docker, Kubernetes e pipeline de CI.
+Código da parte técnica do PIM VIII (ADS, UNIP). A solução é uma API em C# com .NET 10, organizada em camadas, com banco SQL Server, Docker, Kubernetes e pipeline de CI.
 
 ## Estrutura
 
@@ -20,46 +20,69 @@ Dockerfile                    build em dois estágios
 docker-compose.yml            API + SQL Server para uso local
 ```
 
-## Como rodar e quais prints isso gera
+## Pré-requisitos
 
-Pré-requisitos: .NET 8 SDK, Docker Desktop e, para o Kubernetes, o Kubernetes do Docker Desktop (ou minikube/kind). Para o banco, SSMS ou Azure Data Studio.
+.NET 10 SDK, Docker Desktop (com Kubernetes ativado, para a Figura 3) e VS Code com a extensão SQL Server (mssql), ou SSMS.
 
-| Figura | Comando ou ação |
-| --- | --- |
-| 1 (pipeline) | Subir o repositório no GitHub e abrir a aba Actions depois de um push |
-| 2 (Docker) | `docker build -t alunostech/api:latest .` e depois `docker run -d -p 8080:8080 alunostech/api:latest` e `docker ps` |
-| 3 (Kubernetes) | `kubectl apply -f k8s/deployment.yaml -f k8s/service.yaml` e depois `kubectl get pods` |
-| 4 (Grafana) | Opcional. Não há configuração de Prometheus/Grafana neste repositório ainda |
-| 5 e 6 (Kanban e backlog) | Trello, GitHub Projects ou Azure Boards |
-| 7 (estrutura) | Abrir a pasta no VS Code e expandir `src` e `tests` |
-| 8 (testes) | `dotnet test` |
-| 9 (API) | `dotnet run --project src/AlunosTech.Api` e abrir `/swagger` ou `/health` |
-| 10 (DER) | Gerar o diagrama a partir de `database/01_schema.sql` |
-| 11 a 13 (banco) | Executar os scripts de `database/` na ordem e usar o `06_demonstracao.sql` |
+## Rodar e testar
 
-### Banco de dados local com Docker
-
-```bash
-docker compose up -d sqlserver
-
-# executa os scripts na ordem (a senha é só de desenvolvimento)
-for f in database/0[1-5]_*.sql; do
-  docker compose exec sqlserver /opt/mssql-tools18/bin/sqlcmd \
-    -S localhost -U sa -P 'Alunos@Tech123' -C -i /scripts/$(basename $f)
-done
+```powershell
+dotnet build
+dotnet test
+dotnet run --project src/AlunosTech.Api
 ```
 
-Depois, `database/06_demonstracao.sql` pode ser aberto no SSMS ou no Azure Data Studio (servidor `localhost,1433`, usuário `sa`) para tirar os prints das Figuras 11, 12 e 13.
+Com a API no ar, abra `http://localhost:5000/swagger` e `http://localhost:5000/health`.
+
+## Banco de dados local com Docker
+
+```powershell
+docker compose up -d sqlserver
+```
+
+Espere uns 30 segundos e crie o banco (a senha é só de desenvolvimento):
+
+```powershell
+foreach ($f in Get-ChildItem database/0[1-5]_*.sql) {
+  docker compose exec sqlserver /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P "Alunos@Tech123" -C -i /scripts/$($f.Name)
+}
+```
+
+Para consultar, conecte no servidor `localhost,1433` com o usuário `sa` e use o `database/06_demonstracao.sql`.
+
+## Kubernetes local
+
+```powershell
+docker build -t alunostech/api:latest .
+kubectl apply -f k8s/deployment.yaml -f k8s/service.yaml
+kubectl get pods
+```
+
+## Prints do PIM (parte técnica)
+
+| Figura | O que mostrar | Como gerar |
+| --- | --- | --- |
+| 1 | CI verde | Aba Actions do GitHub |
+| 2 | Contêiner rodando (opcional) | `docker run -d -p 8080:8080 alunostech/api:latest` e `docker ps` |
+| 3 | Pods da API em Running | `kubectl get pods` |
+| 4 | Estrutura de pastas (opcional) | VS Code com `src` e `tests` abertos |
+| 5 | Testes aprovados | `dotnet test` |
+| 6 | API no ar | `/swagger` no navegador |
+| 7 | Código enviado ao GitHub (opcional) | `git push` |
+| 8 | Diagrama do banco (opcional) | DER das tabelas de `database/01_schema.sql` |
+| 9 | Procedure em execução | `EXEC sp_GerarFaturasMensais` e `SELECT * FROM Fatura` |
+| 10 | Trigger de auditoria | `UPDATE` de status e `SELECT * FROM AuditoriaFatura` |
+| 11 | Plano de execução (opcional) | Plano real da consulta de faturas abertas |
+
+Os essenciais são as Figuras 1, 3, 5, 6, 9 e 10.
 
 ## O que ainda não está neste repositório
 
-O texto do PIM cita itens que não foram implementados aqui. Ou o grupo implementa, ou o texto deve ser ajustado para não afirmar o que não existe:
+O PIM descreve como proposta, sem implementação aqui:
 
-- aplicativo desktop em WPF (só roda em Windows);
-- Worker Service para o fechamento mensal;
-- uso do Dapper nas consultas pesadas;
-- configuração do Prometheus e do Grafana;
-- infraestrutura real no Azure (AKS, Application Gateway, Key Vault). Os manifestos em `k8s/` funcionam em cluster local.
+- infraestrutura real no Azure (AKS, Application Gateway, Key Vault). Os manifestos em `k8s/` funcionam em cluster local;
+- monitoramento com Prometheus e Grafana;
+- portal web, aplicativo desktop em WPF e Worker Service.
 
 ## Como colaborar
 
